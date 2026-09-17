@@ -102,9 +102,9 @@ export default function KitchenDashboardPage() {
 
               loadedOrders = rawOrders.map((ord: any, index: number) => {
                 const mappedItems = (ord.items || ord.orderItems || []).map((item: any, idx: number) => ({
-                  id: item.id || item._id || `item-${idx}`,
+                  id: item.id || item._id || `item-${index}-${idx}`,
                   name: item.menuItem?.name || item.name || item.title || 'Food Item',
-                  quantity: item.quantity || item.qty || 1,
+                  quantity: Number(item.quantity || item.qty || 1),
                   price: Number(item.price || item.menuItem?.price || 0),
                 }));
 
@@ -175,7 +175,7 @@ export default function KitchenDashboardPage() {
               createdAt: parsed.createdAt || new Date().toISOString(),
             });
           } catch (e) {
-            // Ignore invalid JSON entries
+            // Ignore invalid JSON
           }
         }
       }
@@ -279,7 +279,7 @@ export default function KitchenDashboardPage() {
     <div className="min-h-screen bg-[#F2F7F4] text-emerald-950 pb-20 py-6 px-4 sm:px-6 lg:px-8 font-sans">
       <div className="max-w-7xl mx-auto space-y-6">
 
-        {/* Pista Sage Header Card */}
+        {/* Header Card */}
         <div className="bg-white border border-[#CCE3D4] rounded-3xl p-6 shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
           <div className="flex items-center gap-4">
             <div className="w-12 h-12 rounded-2xl bg-[#2D5A27] text-emerald-50 flex items-center justify-center shadow-md shadow-emerald-900/10 shrink-0">
@@ -296,7 +296,6 @@ export default function KitchenDashboardPage() {
           </div>
 
           <div className="flex items-center gap-3 w-full md:w-auto justify-between md:justify-end">
-            {/* Filter Navigation Pills in Sage Palette */}
             <div className="bg-[#E4EFE8] p-1 rounded-2xl border border-[#D0E2D6] flex items-center gap-1 overflow-x-auto">
               {(['ALL', 'PENDING', 'PREPARING', 'READY', 'DELIVERED'] as const).map((f) => (
                 <button
@@ -340,7 +339,7 @@ export default function KitchenDashboardPage() {
           </div>
         )}
 
-        {/* Kitchen Orders Grid matching Reference Image */}
+        {/* Kitchen Orders Grid */}
         {loading && visibleOrders.length === 0 ? (
           <div className="bg-white rounded-3xl p-12 text-center border border-[#CCE3D4] shadow-sm">
             <RefreshCw className="w-8 h-8 animate-spin text-[#2D5A27] mx-auto mb-3" />
@@ -366,7 +365,7 @@ export default function KitchenDashboardPage() {
                   className="bg-white rounded-3xl border border-[#CCE3D4] shadow-sm hover:shadow-md transition-all duration-200 overflow-hidden flex flex-col justify-between"
                 >
                   <div>
-                    {/* Deep Forest Dark Header Card (Pista Contrast) */}
+                    {/* Header */}
                     <div className="bg-[#1C3E2F] text-emerald-50 p-4 flex justify-between items-center">
                       <div>
                         <span className="text-xs font-black text-[#85E0AD] uppercase tracking-wide block">
@@ -411,7 +410,7 @@ export default function KitchenDashboardPage() {
                       </div>
                     </div>
 
-                    {/* Customer & Address Details */}
+                    {/* Customer Details */}
                     <div className="p-5 pb-2">
                       <div className="flex justify-between items-start mb-2">
                         <div>
@@ -419,7 +418,7 @@ export default function KitchenDashboardPage() {
                           <span className="font-bold text-[#1C3E2F] text-sm">{order.customerName}</span>
                         </div>
                         <span className="text-base font-extrabold text-[#1C3E2F]">
-                          ${(order.totalAmount || order.subtotal || 0).toFixed(2)}
+                          ${Number(order.totalAmount || order.subtotal || 0).toFixed(2)}
                         </span>
                       </div>
 
@@ -428,7 +427,7 @@ export default function KitchenDashboardPage() {
                         <span className="truncate">{order.deliveryAddress}</span>
                       </div>
 
-                      {/* Items List Box */}
+                      {/* Items */}
                       <div className="space-y-2">
                         <h4 className="text-[10px] uppercase font-black text-[#5C7E70] tracking-wider">
                           ITEMS TO PREPARE
@@ -436,12 +435,13 @@ export default function KitchenDashboardPage() {
                         <div className="bg-[#F2F7F4] rounded-2xl p-4 space-y-2.5 border border-[#E0EFE6] max-h-48 overflow-y-auto">
                           {order.items && order.items.length > 0 ? (
                             order.items.map((rawItem: any, idx: number) => {
-                              const item = rawItem.menuItem ? rawItem.menuItem : rawItem;
+                              const itemName = rawItem.name || rawItem.menuItem?.name || rawItem.title || 'Food Item';
+                              const itemQty = rawItem.quantity || rawItem.qty || 1;
                               return (
-                                <div key={item.id || idx} className="flex justify-between items-center text-xs">
+                                <div key={rawItem.id || `item-${order.id}-${idx}`} className="flex justify-between items-center text-xs">
                                   <span className="font-bold text-[#1C3E2F]">
-                                    <span className="text-[#2D5A27] font-black mr-2">x{rawItem.quantity || 1}</span>
-                                    {item.name || rawItem.name || 'Food Item'}
+                                    <span className="text-[#2D5A27] font-black mr-2">x{itemQty}</span>
+                                    {itemName}
                                   </span>
                                 </div>
                               );
@@ -454,7 +454,7 @@ export default function KitchenDashboardPage() {
                     </div>
                   </div>
 
-                  {/* Action Button Section matching layout */}
+                  {/* Actions */}
                   <div className="p-5 pt-3">
                     {order.status === 'PENDING' && (
                       <button

@@ -1,9 +1,9 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { getOrderByIdApi } from '@/lib/api-client';
-import { Order, OrderStatus } from '@/types';
+import { Order, OrderStatus, PaymentStatus } from '@/types';
 import { motion } from 'framer-motion';
 import { 
   RefreshCw, 
@@ -90,17 +90,18 @@ const ICON_ANIMATIONS: Record<string, any> = {
 export default function OrderDetailsPage() {
   const params = useParams();
   const router = useRouter();
-  const id = params?.id as string;
+
+  const rawId = params?.id || params?.orderId;
+  const id = Array.isArray(rawId) ? rawId[0] : (rawId as string);
 
   const [order, setOrder] = useState<Order | null>(null);
   const [driver, setDriver] = useState<DriverInfo | null>(null);
   const [refreshing, setRefreshing] = useState(false);
 
-  const fetchOrder = async () => {
+  const fetchOrder = useCallback(async () => {
     if (!id) return;
     setRefreshing(true);
 
-    // 1. Check for assigned driver saved locally from Admin Dispatch
     if (typeof window !== 'undefined') {
       const driverName = localStorage.getItem(`assigned_driver_name_${id}`);
       if (driverName) {
@@ -125,17 +126,22 @@ export default function OrderDetailsPage() {
       console.warn(`API fetch failed for order ${id}, reading from local storage fallback:`, error);
     }
 
-    // Dynamic fallback reading order payload saved during checkout
-    const storedStatus = (localStorage.getItem(`order_status_${id}`) as OrderStatus) || 'CONFIRMED';
-    const storedOrderData = localStorage.getItem(`latest_order_${id}`);
-    
-    let parsedItems = [];
+    let storedStatus: OrderStatus = 'CONFIRMED';
+    let storedOrderData: string | null = null;
+
+    if (typeof window !== 'undefined') {
+      storedStatus = (localStorage.getItem(`order_status_${id}`) as OrderStatus) || 'CONFIRMED';
+      storedOrderData = localStorage.getItem(`latest_order_${id}`);
+    }
+
+    let parsedItems: any[] = [];
     let parsedTotal = 0;
     let parsedAddress = 'Delivery Address';
     let parsedRestaurantId = '';
     let parsedRestaurantName = '';
     let parsedCustomerName = 'Customer';
     let parsedCreatedAt = new Date().toISOString();
+    let parsedPaymentStatus: any = 'SUCCESSFUL'; // FIX: Allowed flexible type conversion
 
     if (storedOrderData) {
       try {
@@ -147,6 +153,7 @@ export default function OrderDetailsPage() {
         parsedRestaurantName = parsed.restaurantName || parsed.restaurant?.name || 'Restaurant';
         parsedCustomerName = parsed.customerName || parsedCustomerName;
         parsedCreatedAt = parsed.createdAt || parsedCreatedAt;
+        parsedPaymentStatus = parsed.paymentStatus || 'SUCCESSFUL';
       } catch (e) {
         console.error('Error parsing stored order details', e);
       }
@@ -169,7 +176,7 @@ export default function OrderDetailsPage() {
       discount: 0,
       totalAmount: parsedTotal,
       status: storedStatus,
-      paymentStatus: 'SUCCESSFUL',
+      paymentStatus: parsedPaymentStatus as PaymentStatus, // FIX: Explicit Type Cast prevents TS2322 Error
       items: parsedItems,
       statusHistory: activeStages.map((st, i) => ({
         status: st,
@@ -179,14 +186,16 @@ export default function OrderDetailsPage() {
     });
 
     setRefreshing(false);
-  };
+  }, [id]);
 
   useEffect(() => {
     fetchOrder();
+
     const interval = setInterval(() => {
       if (typeof window !== 'undefined' && id) {
         const driverName = localStorage.getItem(`assigned_driver_name_${id}`);
-        const liveStatus = (localStorage.getItem(`order_status_${id}`) as OrderStatus);
+        const liveStatus = localStorage.getItem(`order_status_${id}`) as OrderStatus;
+
         if (driverName && (!driver || driver.name !== driverName)) {
           setDriver({
             id: 'drv-alex',
@@ -196,14 +205,20 @@ export default function OrderDetailsPage() {
             rating: 4.9,
           });
         }
-        if (liveStatus && order && order.status !== liveStatus) {
-          setOrder((prev) => (prev ? { ...prev, status: liveStatus } : prev));
+
+        if (liveStatus) {
+          setOrder((prev) => {
+            if (prev && prev.status !== liveStatus) {
+              return { ...prev, status: liveStatus };
+            }
+            return prev;
+          });
         }
       }
     }, 3000);
 
     return () => clearInterval(interval);
-  }, [id, order?.status]);
+  }, [id, fetchOrder]);
 
   if (!order) {
     return (
@@ -219,8 +234,6 @@ export default function OrderDetailsPage() {
 
   return (
     <div className="min-h-screen bg-culinary-pattern text-slate-800 pb-16">
-      
-      {/* 1. Live Customer Sub-Navbar Status Header */}
       <div className="bg-slate-900 text-white py-2.5 px-4 shadow-md sticky top-0 z-40">
         <div className="max-w-4xl mx-auto flex flex-wrap justify-between items-center text-xs gap-2">
           <div className="flex items-center space-x-3">
@@ -253,8 +266,6 @@ export default function OrderDetailsPage() {
       </div>
 
       <div className="max-w-4xl mx-auto py-8 px-4 space-y-6">
-        
-        {/* Navigation Bar */}
         <div className="flex items-center justify-between">
           <button
             onClick={() => router.push('/restaurants')}
@@ -264,7 +275,6 @@ export default function OrderDetailsPage() {
           </button>
         </div>
 
-        {/* Top Header Card */}
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
@@ -308,7 +318,6 @@ export default function OrderDetailsPage() {
           </div>
         </motion.div>
 
-        {/* Delivery Progress Stepper */}
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
@@ -372,7 +381,6 @@ export default function OrderDetailsPage() {
           )}
         </motion.div>
 
-        {/* 2. Assigned Delivery Driver Info Card */}
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
@@ -408,10 +416,7 @@ export default function OrderDetailsPage() {
           )}
         </motion.div>
 
-        {/* Items & Order Summary Breakdown */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          
-          {/* Purchased Items List */}
           <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
@@ -448,7 +453,6 @@ export default function OrderDetailsPage() {
             )}
           </motion.div>
 
-          {/* Status History & Summary */}
           <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
@@ -488,9 +492,7 @@ export default function OrderDetailsPage() {
               </span>
             </div>
           </motion.div>
-
         </div>
-
       </div>
     </div>
   );

@@ -25,14 +25,6 @@ export function Navbar() {
     normalizedRole === 'RESTAURANT_MANAGER' || normalizedRole === 'RESTAURANT_ADMIN';
   const isAdmin = normalizedRole === 'SYSTEM_ADMIN' || normalizedRole === 'ADMIN';
 
-  // Directs main History button to the accurate dashboard endpoint per active role
-  const getHistoryRoute = () => {
-    if (isDriver) return '/driver/history';
-    if (isRestaurantManager) return '/restaurants/history';
-    if (isAdmin) return '/admin/orders';
-    return '/orders';
-  };
-
   return (
     <nav className="sticky top-0 z-50 transition-colors duration-200 border-b bg-white/95 border-slate-100 backdrop-blur-md shadow-xs">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
@@ -146,23 +138,6 @@ export function Navbar() {
             <div className="w-16 h-8 bg-slate-100 animate-pulse rounded-xl" />
           ) : user ? (
             <div className="flex items-center gap-2 sm:gap-3">
-              {/* Quick Route Shortcut Button */}
-              <Link 
-                href={getHistoryRoute()} 
-                className="p-2.5 rounded-2xl transition-all duration-200 shadow-xs bg-purple-50 text-purple-800 hover:bg-purple-700 hover:text-white border border-purple-200/70"
-                title={
-                  isDriver 
-                    ? "Driver History" 
-                    : isRestaurantManager 
-                    ? "Kitchen History Log" 
-                    : isAdmin 
-                    ? "Admin Order History" 
-                    : "Customer Order History"
-                }
-              >
-                <History className="w-5 h-5" />
-              </Link>
-
               <div className="p-0.5 rounded-2xl transition-all bg-sky-50 text-sky-600 hover:bg-sky-500 hover:text-white">
                 <NotificationDropdown />
               </div>
