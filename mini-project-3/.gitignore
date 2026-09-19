@@ -1,5 +1,12 @@
-frontend/.next/
-frontend/node_modules/
-backend/node_modules/
-frontend/.env.local
-backend/.env
+# Node & Next.js Build Artifacts
+**/node_modules/
+**/.next/
+**/dist/
+
+# All Environment Files
+**/.env
+**/.env.*
+**/.env.local
+
+# Git Patch Files
+*.patch
